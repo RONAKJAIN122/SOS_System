@@ -348,21 +348,63 @@ function buildCards(listId, items, userLat, userLon) {
   });
 }
 
+const homeBtn = document.getElementById("home-btn");
+const themeToggle = document.getElementById("theme-toggle");
+const themeIcon = themeToggle?.querySelector(".theme-icon");
+const themeText = themeToggle?.querySelector(".theme-text");
+let activeSearchId = 0;
+
+function applyTheme(theme) {
+  const isLight = theme === "light";
+  document.body.classList.toggle("light-theme", isLight);
+  if (themeIcon) themeIcon.textContent = isLight ? "☾" : "☀";
+  if (themeText) themeText.textContent = isLight ? "Dark" : "Light";
+  if (themeToggle) {
+    themeToggle.setAttribute(
+      "aria-label",
+      isLight ? "Switch to dark theme" : "Switch to light theme"
+    );
+  }
+}
+
+applyTheme(localStorage.getItem("roadSosTheme") || "dark");
+
+themeToggle?.addEventListener("click", () => {
+  const nextTheme = document.body.classList.contains("light-theme") ? "dark" : "light";
+  localStorage.setItem("roadSosTheme", nextTheme);
+  applyTheme(nextTheme);
+});
+
+homeBtn?.addEventListener("click", () => {
+  activeSearchId += 1;
+  document.getElementById("find-btn").disabled = false;
+  document.getElementById("results").style.display = "none";
+  document.getElementById("status").textContent = "";
+  document.getElementById("hospitals-list").innerHTML = "";
+  document.getElementById("police-list").innerHTML = "";
+  document.getElementById("ambulance-list").innerHTML = "";
+  window.scrollTo({ top: 0, behavior: "smooth" });
+});
+
 document.getElementById("find-btn").addEventListener("click", async () => {
+  const searchId = activeSearchId + 1;
+  activeSearchId = searchId;
   const btn    = document.getElementById("find-btn");
   const status = document.getElementById("status");
 
   btn.disabled       = true;
-  status.style.color = "#aaa";
+  status.style.color = "var(--muted)";
   status.textContent = "Acquiring GPS fix… (up to 6 s)";
 
   try {
     // 1. Get best available GPS fix
     const { lat, lon, accuracy } = await getUserLocation();
+    if (searchId !== activeSearchId) return;
     status.textContent = `Locating… (±${Math.round(accuracy)}m accuracy)`;
 
     // 2. Reverse-geocode for a readable label
     const address = await reverseGeocode(lat, lon);
+    if (searchId !== activeSearchId) return;
     console.log(`🗺️  Address: ${address}`);
     status.textContent = `📍 ${address} (±${Math.round(accuracy)}m)`;
 
@@ -370,8 +412,13 @@ document.getElementById("find-btn").addEventListener("click", async () => {
     status.textContent += " — searching nearby…";
     const { hospitals, police, searchedRadiusKm } = await fetchNearbyPlaces(
       lat, lon,
-      (msg) => { status.textContent = `📍 ${address} — ${msg}`; }
+      (msg) => {
+        if (searchId === activeSearchId) {
+          status.textContent = `📍 ${address} — ${msg}`;
+        }
+      }
     );
+    if (searchId !== activeSearchId) return;
 
     // 4. Fetch real road distances from OSRM
     status.textContent = `📍 ${address} — calculating road distances…`;
@@ -380,6 +427,7 @@ document.getElementById("find-btn").addEventListener("click", async () => {
         hospitals.length ? fetchRoadDistances(lat, lon, hospitals) : Promise.resolve(),
         police.length    ? fetchRoadDistances(lat, lon, police)   : Promise.resolve(),
       ]);
+      if (searchId !== activeSearchId) return;
       console.log("🛣️  Road distances fetched via OSRM");
     } catch (err) {
       console.warn("⚠️ OSRM failed, using straight-line distances:", err.message);
@@ -400,10 +448,11 @@ document.getElementById("find-btn").addEventListener("click", async () => {
     status.textContent = `📍 ${address} (±${Math.round(accuracy)}m)`;
 
   } catch (err) {
+    if (searchId !== activeSearchId) return;
     console.error("Error:", err);
     status.textContent = `⚠️ ${err}`;
     status.style.color = "#ff6b6b";
   } finally {
-    btn.disabled = false;
+    if (searchId === activeSearchId) btn.disabled = false;
   }
 });
