@@ -1,11 +1,11 @@
-﻿// Ã¢â€â‚¬Ã¢â€â‚¬ Distance helpers Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
+// ── Distance helpers ──────────────────────────────────────────────────────────
 
 /**
  * Haversine distance between two GPS points (fallback).
  * @returns distance in metres
  */
 function haversineMetres(lat1, lon1, lat2, lon2) {
-  const R = 6_371_000; // Earth radius in metres
+  const R = 6_371_000;
   const toRad = (d) => (d * Math.PI) / 180;
   const dLat = toRad(lat2 - lat1);
   const dLon = toRad(lon2 - lon1);
@@ -31,16 +31,17 @@ function formatDuration(seconds) {
   return rem > 0 ? `${hrs} hr ${rem} min` : `${hrs} hr`;
 }
 
-// Ã¢â€â‚¬Ã¢â€â‚¬ OSRM Road Distance API Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
+// ── OSRM Road Distance API ────────────────────────────────────────────────────
 
 const OSRM_BASE = "https://router.project-osrm.org";
 const API_TIMEOUT_MS = 12000;
+// Overpass queries need a longer timeout — the server can be slow during peak hours
+const OVERPASS_TIMEOUT_MS = 55000;
 const MAX_RESULTS_PER_CATEGORY = 8;
 
 async function fetchWithTimeout(url, options = {}, timeoutMs = API_TIMEOUT_MS) {
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
-
   try {
     return await fetch(url, { ...options, signal: controller.signal });
   } finally {
@@ -49,26 +50,38 @@ async function fetchWithTimeout(url, options = {}, timeoutMs = API_TIMEOUT_MS) {
 }
 
 /**
+ * Retry a fetch-based function with exponential back-off.
+ * @param {function} fn       — async function to retry
+ * @param {number}   attempts — max attempts
+ * @param {number}   delayMs  — base delay between retries (ms)
+ */
+async function withRetry(fn, attempts = 2, delayMs = 1500) {
+  let lastErr;
+  for (let i = 0; i < attempts; i++) {
+    try {
+      return await fn();
+    } catch (err) {
+      lastErr = err;
+      if (i < attempts - 1) {
+        await new Promise((r) => setTimeout(r, delayMs * (i + 1)));
+      }
+    }
+  }
+  throw lastErr;
+}
+
+/**
  * Fetch real road distances & durations from the user's location to
  * an array of places using the OSRM Table API (single HTTP request).
  * Mutates each place object in-place, adding distMetres, duration, dist fields.
- *
- * @param {number} userLat
- * @param {number} userLon
- * @param {Array} places Ã¢â‚¬â€ array of { name, lat, lon, ... }
- * @returns {Promise<Array>} the same array, enriched with road distances
  */
 async function fetchRoadDistances(userLat, userLon, places) {
   if (!places.length) return places;
 
-  // Build coordinate string: source first, then all destinations
-  // OSRM uses lon,lat order (GeoJSON convention)
   const coords = [`${userLon},${userLat}`, ...places.map(p => `${p.lon},${p.lat}`)];
   const url =
     `${OSRM_BASE}/table/v1/driving/${coords.join(";")}` +
     `?sources=0&annotations=distance,duration`;
-
-  console.log("Ã°Å¸â€ºÂ£Ã¯Â¸Â  OSRM Table request:", url);
 
   const res = await fetchWithTimeout(url, {}, 1500);
   if (!res.ok) throw new Error(`OSRM HTTP ${res.status}`);
@@ -76,12 +89,11 @@ async function fetchRoadDistances(userLat, userLon, places) {
   const json = await res.json();
   if (json.code !== "Ok") throw new Error(`OSRM error: ${json.code}`);
 
-  // distances[0] and durations[0] are arrays from source (index 0) to each dest
-  const distances = json.distances[0]; // metres (float)
-  const durations = json.durations[0]; // seconds (float)
+  const distances = json.distances[0];
+  const durations = json.durations[0];
 
   places.forEach((place, i) => {
-    const d = distances[i + 1]; // +1 because index 0 is sourceÃ¢â€ â€™source
+    const d = distances[i + 1];
     const t = durations[i + 1];
     if (d != null && d > 0) {
       place.distMetres = d;
@@ -90,24 +102,26 @@ async function fetchRoadDistances(userLat, userLon, places) {
     }
   });
 
-  // Re-sort by road distance
   places.sort((a, b) => (a.distMetres ?? Infinity) - (b.distMetres ?? Infinity));
   return places;
 }
 
-// Ã¢â€â‚¬Ã¢â€â‚¬ Overpass API Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
+// ── Overpass API ──────────────────────────────────────────────────────────────
 
+// 4 mirrors so that if one is down or rate-limiting, the others are tried
 const OVERPASS_MIRRORS = [
   "https://overpass-api.de/api/interpreter",
   "https://overpass.kumi.systems/api/interpreter",
+  "https://overpass.openstreetmap.ru/api/interpreter",
+  "https://maps.mail.ru/osm/tools/overpass/api/interpreter",
 ];
 
 /**
  * Build Overpass QL for the specified amenity types.
  * @param {number}   lat
  * @param {number}   lon
- * @param {number}   radius   Ã¢â‚¬â€ search radius in metres
- * @param {string[]} amenities Ã¢â‚¬â€ e.g. ["hospital"], ["police"], or ["hospital","police"]
+ * @param {number}   radius    — search radius in metres
+ * @param {string[]} amenities — e.g. ["hospital"], ["police"], or ["hospital","police"]
  */
 function buildQuery(lat, lon, radius, amenities) {
   const stmts = amenities.flatMap(a => [
@@ -117,7 +131,8 @@ function buildQuery(lat, lon, radius, amenities) {
       ? [`relation["amenity"="${a}"](around:${radius},${lat},${lon});`]
       : []),
   ]);
-  return `[out:json][timeout:30];(${stmts.join("")});out center;`;
+  // timeout:55 tells the Overpass server to spend up to 55 s on the query
+  return `[out:json][timeout:55];(${stmts.join("")});out center;`;
 }
 
 /**
@@ -126,8 +141,8 @@ function buildQuery(lat, lon, radius, amenities) {
  * should later enrich with real road distances via OSRM.
  */
 function parseElement(el, userLat, userLon) {
-  const lat = el.lat  ?? el.center?.lat;
-  const lon = el.lon  ?? el.center?.lon;
+  const lat = el.lat ?? el.center?.lat;
+  const lon = el.lon ?? el.center?.lon;
   const distMetres =
     lat != null && lon != null && userLat != null
       ? haversineMetres(userLat, userLon, lat, lon)
@@ -143,7 +158,7 @@ function parseElement(el, userLat, userLon) {
 
 /**
  * Query Overpass for specific amenity types at a given radius.
- * Tries each mirror in turn.
+ * Tries each mirror in turn, with 2 retry attempts per mirror.
  * @returns {{ hospitals: Array, police: Array }}
  */
 async function fetchOverpass(lat, lon, radius, amenities) {
@@ -152,13 +167,15 @@ async function fetchOverpass(lat, lon, radius, amenities) {
 
   for (const baseUrl of OVERPASS_MIRRORS) {
     try {
-      const fullUrl = baseUrl + "?data=" + encodeURIComponent(query);
-      console.log("Overpass request:", fullUrl);
+      // Each mirror gets up to 2 attempts before we fall through to the next one
+      const json = await withRetry(async () => {
+        const fullUrl = baseUrl + "?data=" + encodeURIComponent(query);
+        console.log("Overpass request:", fullUrl);
+        const res = await fetchWithTimeout(fullUrl, {}, OVERPASS_TIMEOUT_MS);
+        if (!res.ok) throw new Error(`HTTP ${res.status} ${res.statusText}`);
+        return res.json();
+      }, 2, 1500);
 
-      const res = await fetchWithTimeout(fullUrl);
-      if (!res.ok) throw new Error(`HTTP ${res.status} ${res.statusText}`);
-
-      const json      = await res.json();
       const hospitals = [];
       const police    = [];
 
@@ -172,7 +189,7 @@ async function fetchOverpass(lat, lon, radius, amenities) {
       hospitals.sort((a, b) => (a.distMetres ?? Infinity) - (b.distMetres ?? Infinity));
       police.sort((a, b) => (a.distMetres ?? Infinity) - (b.distMetres ?? Infinity));
 
-      console.log(`Overpass (${baseUrl}) - ${hospitals.length} hospitals, ${police.length} police`);
+      console.log(`Overpass (${baseUrl}) — ${hospitals.length} hospitals, ${police.length} police`);
       return {
         hospitals: hospitals.slice(0, MAX_RESULTS_PER_CATEGORY),
         police: police.slice(0, MAX_RESULTS_PER_CATEGORY),
@@ -183,7 +200,7 @@ async function fetchOverpass(lat, lon, radius, amenities) {
     }
   }
 
-  throw lastError ?? new Error("All Overpass mirrors failed");
+  throw lastError ?? new Error("All Overpass mirrors failed — check your internet connection and try again.");
 }
 
 /** Radius steps to try (metres). */
@@ -192,12 +209,11 @@ const SEARCH_RADII = [3000, 5000, 10000, 20000];
 /**
  * fetchNearbyPlaces(lat, lon, onStatus?)
  * Searches each category independently with progressive radius expansion.
- * Once a category is found it is locked in; only the missing category
- * continues expanding.
+ * Once a category is found it is locked in; only the missing category continues expanding.
  *
  * @param {number}   lat
  * @param {number}   lon
- * @param {function} [onStatus] Ã¢â‚¬â€ callback(message) for live UI updates
+ * @param {function} [onStatus] — callback(message) for live UI updates
  * @returns {Promise<{ hospitals: Array, police: Array, searchedRadiusKm: number }>}
  */
 async function fetchNearbyPlaces(lat, lon, onStatus) {
@@ -206,33 +222,30 @@ async function fetchNearbyPlaces(lat, lon, onStatus) {
   let maxSearched = SEARCH_RADII[0];
 
   for (const radius of SEARCH_RADII) {
-    // Determine which categories still need results
     const missing = [];
     if (!hospitals.length) missing.push("hospital");
     if (!police.length)    missing.push("police");
 
-    // Both found Ã¢â€ â€™ done
     if (!missing.length) break;
 
     const radiusKm = radius / 1000;
     const label = missing.map(a => a === "hospital" ? "hospitals" : "police stations").join(" & ");
     if (onStatus) onStatus(`Searching ${label} within ${radiusKm} km...`);
-    console.log(`Ã°Å¸â€Â ${radiusKm} km Ã¢â‚¬â€ looking for: ${missing.join(", ")}`);
+    console.log(`${radiusKm} km — looking for: ${missing.join(", ")}`);
 
     try {
       const result = await fetchOverpass(lat, lon, radius, missing);
 
-      // Merge results only for categories we were still missing
       if (!hospitals.length && result.hospitals.length) {
         hospitals = result.hospitals;
-        console.log(`Ã°Å¸ÂÂ¥ Hospitals locked in at ${radiusKm} km (${hospitals.length} found)`);
+        console.log(`Hospitals locked in at ${radiusKm} km (${hospitals.length} found)`);
       }
       if (!police.length && result.police.length) {
         police = result.police;
-        console.log(`Ã°Å¸â€˜Â® Police locked in at ${radiusKm} km (${police.length} found)`);
+        console.log(`Police locked in at ${radiusKm} km (${police.length} found)`);
       }
     } catch (err) {
-      console.warn(`Ã¢Å¡Â Ã¯Â¸Â All mirrors failed at ${radius}m:`, err.message);
+      console.warn(`All mirrors failed at ${radius}m:`, err.message);
     }
 
     maxSearched = radius;
@@ -241,16 +254,8 @@ async function fetchNearbyPlaces(lat, lon, onStatus) {
   return { hospitals, police, searchedRadiusKm: maxSearched / 1000 };
 }
 
-// Ã¢â€â‚¬Ã¢â€â‚¬ Geolocation Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
+// ── Geolocation ───────────────────────────────────────────────────────────────
 
-/**
- * getUserLocation()
- * Uses watchPosition to collect fixes for up to WATCH_MS milliseconds,
- * then picks the one with the best (lowest) accuracy value.
- * Falls back to the first fix immediately if the device reports it is precise enough.
- *
- * @returns {Promise<{ lat: number, lon: number, accuracy: number }>}
- */
 const LOCATION_KEY = "roadsos-last-location";
 
 function readCachedLocation(maxAgeMs, maxAccuracy = Infinity) {
@@ -278,10 +283,8 @@ function getUserLocation() {
       return;
     }
 
-    if (!window.isSecureContext) {
-      reject("Location needs a secure page. Open this app on localhost or HTTPS.");
-      return;
-    }
+    // Note: file:// pages are treated as secure contexts in modern browsers,
+    // so we do NOT block them here.
 
     const freshCache = readCachedLocation(30 * 1000, 500);
     if (freshCache) {
@@ -387,21 +390,15 @@ async function reverseGeocode(lat, lon) {
   return json.display_name || `${lat.toFixed(5)}, ${lon.toFixed(5)}`;
 }
 
-// Ã¢â€â‚¬Ã¢â€â‚¬ Static fallback (ambulance Ã¢â‚¬â€ not in Overpass reliably) Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
+// ── Static fallback (ambulance — not in Overpass reliably) ────────────────────
 
 const AMBULANCE_DATA = [
   { name: "National Ambulance 108", dist: "On-call", phone: "tel:108" },
   { name: "RedCross Emergency",     dist: "On-call",  phone: "tel:+1800004444" },
 ];
 
-// Ã¢â€â‚¬Ã¢â€â‚¬ UI Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
+// ── UI ────────────────────────────────────────────────────────────────────────
 
-/**
- * @param {string} listId   Ã¢â‚¬â€œ DOM container id
- * @param {Array}  items    Ã¢â‚¬â€œ place objects
- * @param {number} [userLat] Ã¢â‚¬â€œ user GPS lat (enables Navigate button)
- * @param {number} [userLon] Ã¢â‚¬â€œ user GPS lon
- */
 const THEME_KEY = "roadsos-theme";
 let activeSearchId = 0;
 
@@ -429,6 +426,9 @@ function resetHome() {
   document.getElementById("police-list").innerHTML = "";
   document.getElementById("ambulance-list").innerHTML = "";
   document.getElementById("find-btn").disabled = false;
+  // Remove any leftover retry button
+  const old = document.getElementById("retry-inline-btn");
+  if (old) old.remove();
   window.scrollTo({ top: 0, behavior: "smooth" });
 }
 
@@ -448,8 +448,6 @@ function buildCards(listId, items, userLat, userLon) {
     const card = document.createElement("div");
     card.className = "card";
 
-    // Build Google Maps directions URL from user location Ã¢â€ â€™ destination
-    // Uses the official Maps URLs API with the place name so Google snaps to the real location
     const hasCoords = item.lat != null && item.lon != null && userLat != null;
     const mapsUrl = hasCoords
       ? `https://www.google.com/maps/dir/?api=1`
@@ -481,6 +479,10 @@ document.getElementById("find-btn").addEventListener("click", async () => {
   const status = document.getElementById("status");
   const loader = document.getElementById("loader");
 
+  // Remove any previous retry button
+  const oldRetry = document.getElementById("retry-inline-btn");
+  if (oldRetry) oldRetry.remove();
+
   btn.disabled       = true;
   loader.classList.add("is-active");
   status.style.color = "";
@@ -494,7 +496,7 @@ document.getElementById("find-btn").addEventListener("click", async () => {
 
     const addressPromise = reverseGeocode(lat, lon).catch(() => `${lat.toFixed(5)}, ${lon.toFixed(5)}`);
 
-    // 2. Fetch nearby places first so results appear quickly.
+    // 2. Fetch nearby places (hospitals & police)
     const { hospitals, police, searchedRadiusKm } = await fetchNearbyPlaces(
       lat, lon,
       (msg) => {
@@ -506,7 +508,7 @@ document.getElementById("find-btn").addEventListener("click", async () => {
 
     if (searchId !== activeSearchId) return;
 
-    // 3. Render immediately using fast straight-line distances.
+    // 3. Render immediately using fast straight-line distances
     buildCards("hospitals-list", hospitals.length
       ? hospitals
       : [{ name: `No hospitals found within ${searchedRadiusKm} km`, dist: "Nearby" }], lat, lon);
@@ -527,7 +529,7 @@ document.getElementById("find-btn").addEventListener("click", async () => {
       }
     });
 
-    // 4. Improve displayed distances in the background if OSRM responds quickly.
+    // 4. Improve displayed distances in the background via OSRM
     Promise.all([
       hospitals.length ? fetchRoadDistances(lat, lon, hospitals) : Promise.resolve(),
       police.length    ? fetchRoadDistances(lat, lon, police)   : Promise.resolve(),
@@ -545,8 +547,37 @@ document.getElementById("find-btn").addEventListener("click", async () => {
 
   } catch (err) {
     console.error("Error:", err);
-    status.textContent = `Error: ${err}`;
+
+    // Show a friendly message based on the error type
+    const msg = String(err.message || err);
+    let userMsg = `Error: ${msg}`;
+    if (msg.includes("denied") || msg.includes("permission")) {
+      userMsg = "Location access denied. Enable it in your browser, then try again.";
+    } else if (msg.includes("mirrors failed") || msg.includes("HTTP")) {
+      userMsg = "Map data servers are busy. Wait a moment and try again.";
+    } else if (msg.includes("timeout") || msg.includes("abort") || msg.includes("timed out")) {
+      userMsg = "Connection timed out. Check your internet and try again.";
+    } else if (msg.includes("unavailable")) {
+      userMsg = "Location unavailable. Turn on GPS and try again.";
+    }
+
+    status.textContent = userMsg;
     status.style.color = "var(--danger)";
+
+    // Show an inline retry button so the user doesn't have to refresh
+    if (!document.getElementById("retry-inline-btn")) {
+      const retryBtn = document.createElement("button");
+      retryBtn.id = "retry-inline-btn";
+      retryBtn.textContent = "Try again";
+      retryBtn.style.cssText =
+        "margin-top:14px;padding:10px 28px;border:none;border-radius:8px;" +
+        "background:var(--danger);color:#fff;font-size:0.95rem;font-weight:600;cursor:pointer;";
+      retryBtn.addEventListener("click", () => {
+        retryBtn.remove();
+        document.getElementById("find-btn").click();
+      });
+      status.insertAdjacentElement("afterend", retryBtn);
+    }
   } finally {
     if (searchId === activeSearchId) {
       loader.classList.remove("is-active");
