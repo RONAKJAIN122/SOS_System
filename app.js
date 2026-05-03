@@ -1,4 +1,4 @@
-// ── Distance helpers ──────────────────────────────────────────────────────────
+﻿// Ã¢â€â‚¬Ã¢â€â‚¬ Distance helpers Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
 
 /**
  * Haversine distance between two GPS points (fallback).
@@ -31,9 +31,22 @@ function formatDuration(seconds) {
   return rem > 0 ? `${hrs} hr ${rem} min` : `${hrs} hr`;
 }
 
-// ── OSRM Road Distance API ───────────────────────────────────────────────────
+// Ã¢â€â‚¬Ã¢â€â‚¬ OSRM Road Distance API Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
 
 const OSRM_BASE = "https://router.project-osrm.org";
+const API_TIMEOUT_MS = 12000;
+const MAX_RESULTS_PER_CATEGORY = 8;
+
+async function fetchWithTimeout(url, options = {}, timeoutMs = API_TIMEOUT_MS) {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+
+  try {
+    return await fetch(url, { ...options, signal: controller.signal });
+  } finally {
+    clearTimeout(timeoutId);
+  }
+}
 
 /**
  * Fetch real road distances & durations from the user's location to
@@ -42,7 +55,7 @@ const OSRM_BASE = "https://router.project-osrm.org";
  *
  * @param {number} userLat
  * @param {number} userLon
- * @param {Array} places — array of { name, lat, lon, ... }
+ * @param {Array} places Ã¢â‚¬â€ array of { name, lat, lon, ... }
  * @returns {Promise<Array>} the same array, enriched with road distances
  */
 async function fetchRoadDistances(userLat, userLon, places) {
@@ -55,9 +68,9 @@ async function fetchRoadDistances(userLat, userLon, places) {
     `${OSRM_BASE}/table/v1/driving/${coords.join(";")}` +
     `?sources=0&annotations=distance,duration`;
 
-  console.log("🛣️  OSRM Table request:", url);
+  console.log("Ã°Å¸â€ºÂ£Ã¯Â¸Â  OSRM Table request:", url);
 
-  const res = await fetch(url);
+  const res = await fetchWithTimeout(url, {}, 1500);
   if (!res.ok) throw new Error(`OSRM HTTP ${res.status}`);
 
   const json = await res.json();
@@ -68,12 +81,12 @@ async function fetchRoadDistances(userLat, userLon, places) {
   const durations = json.durations[0]; // seconds (float)
 
   places.forEach((place, i) => {
-    const d = distances[i + 1]; // +1 because index 0 is source→source
+    const d = distances[i + 1]; // +1 because index 0 is sourceÃ¢â€ â€™source
     const t = durations[i + 1];
     if (d != null && d > 0) {
       place.distMetres = d;
       place.duration   = t;
-      place.dist       = `${formatDistance(d)}  •  🚗 ${formatDuration(t)}`;
+      place.dist       = `${formatDistance(d)} - ${formatDuration(t)} drive`;
     }
   });
 
@@ -82,7 +95,7 @@ async function fetchRoadDistances(userLat, userLon, places) {
   return places;
 }
 
-// ── Overpass API ──────────────────────────────────────────────────────────────
+// Ã¢â€â‚¬Ã¢â€â‚¬ Overpass API Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
 
 const OVERPASS_MIRRORS = [
   "https://overpass-api.de/api/interpreter",
@@ -93,8 +106,8 @@ const OVERPASS_MIRRORS = [
  * Build Overpass QL for the specified amenity types.
  * @param {number}   lat
  * @param {number}   lon
- * @param {number}   radius   — search radius in metres
- * @param {string[]} amenities — e.g. ["hospital"], ["police"], or ["hospital","police"]
+ * @param {number}   radius   Ã¢â‚¬â€ search radius in metres
+ * @param {string[]} amenities Ã¢â‚¬â€ e.g. ["hospital"], ["police"], or ["hospital","police"]
  */
 function buildQuery(lat, lon, radius, amenities) {
   const stmts = amenities.flatMap(a => [
@@ -134,15 +147,15 @@ function parseElement(el, userLat, userLon) {
  * @returns {{ hospitals: Array, police: Array }}
  */
 async function fetchOverpass(lat, lon, radius, amenities) {
-  const query   = buildQuery(lat, lon, radius, amenities);
+  const query = buildQuery(lat, lon, radius, amenities);
   let lastError;
 
   for (const baseUrl of OVERPASS_MIRRORS) {
     try {
       const fullUrl = baseUrl + "?data=" + encodeURIComponent(query);
-      console.log("🔗 Overpass request:", fullUrl);
+      console.log("Overpass request:", fullUrl);
 
-      const res = await fetch(fullUrl);
+      const res = await fetchWithTimeout(fullUrl);
       if (!res.ok) throw new Error(`HTTP ${res.status} ${res.statusText}`);
 
       const json      = await res.json();
@@ -159,13 +172,17 @@ async function fetchOverpass(lat, lon, radius, amenities) {
       hospitals.sort((a, b) => (a.distMetres ?? Infinity) - (b.distMetres ?? Infinity));
       police.sort((a, b) => (a.distMetres ?? Infinity) - (b.distMetres ?? Infinity));
 
-      console.log(`✅ Overpass (${baseUrl}) — ${hospitals.length} hospitals, ${police.length} police`);
-      return { hospitals, police };
+      console.log(`Overpass (${baseUrl}) - ${hospitals.length} hospitals, ${police.length} police`);
+      return {
+        hospitals: hospitals.slice(0, MAX_RESULTS_PER_CATEGORY),
+        police: police.slice(0, MAX_RESULTS_PER_CATEGORY),
+      };
     } catch (err) {
-      console.warn(`⚠️ Mirror failed (${baseUrl}):`, err.message);
+      console.warn(`Mirror failed (${baseUrl}):`, err.message);
       lastError = err;
     }
   }
+
   throw lastError ?? new Error("All Overpass mirrors failed");
 }
 
@@ -180,7 +197,7 @@ const SEARCH_RADII = [3000, 5000, 10000, 20000];
  *
  * @param {number}   lat
  * @param {number}   lon
- * @param {function} [onStatus] — callback(message) for live UI updates
+ * @param {function} [onStatus] Ã¢â‚¬â€ callback(message) for live UI updates
  * @returns {Promise<{ hospitals: Array, police: Array, searchedRadiusKm: number }>}
  */
 async function fetchNearbyPlaces(lat, lon, onStatus) {
@@ -194,13 +211,13 @@ async function fetchNearbyPlaces(lat, lon, onStatus) {
     if (!hospitals.length) missing.push("hospital");
     if (!police.length)    missing.push("police");
 
-    // Both found → done
+    // Both found Ã¢â€ â€™ done
     if (!missing.length) break;
 
     const radiusKm = radius / 1000;
     const label = missing.map(a => a === "hospital" ? "hospitals" : "police stations").join(" & ");
-    if (onStatus) onStatus(`Searching ${label} within ${radiusKm} km…`);
-    console.log(`🔍 ${radiusKm} km — looking for: ${missing.join(", ")}`);
+    if (onStatus) onStatus(`Searching ${label} within ${radiusKm} km...`);
+    console.log(`Ã°Å¸â€Â ${radiusKm} km Ã¢â‚¬â€ looking for: ${missing.join(", ")}`);
 
     try {
       const result = await fetchOverpass(lat, lon, radius, missing);
@@ -208,14 +225,14 @@ async function fetchNearbyPlaces(lat, lon, onStatus) {
       // Merge results only for categories we were still missing
       if (!hospitals.length && result.hospitals.length) {
         hospitals = result.hospitals;
-        console.log(`🏥 Hospitals locked in at ${radiusKm} km (${hospitals.length} found)`);
+        console.log(`Ã°Å¸ÂÂ¥ Hospitals locked in at ${radiusKm} km (${hospitals.length} found)`);
       }
       if (!police.length && result.police.length) {
         police = result.police;
-        console.log(`👮 Police locked in at ${radiusKm} km (${police.length} found)`);
+        console.log(`Ã°Å¸â€˜Â® Police locked in at ${radiusKm} km (${police.length} found)`);
       }
     } catch (err) {
-      console.warn(`⚠️ All mirrors failed at ${radius}m:`, err.message);
+      console.warn(`Ã¢Å¡Â Ã¯Â¸Â All mirrors failed at ${radius}m:`, err.message);
     }
 
     maxSearched = radius;
@@ -224,7 +241,7 @@ async function fetchNearbyPlaces(lat, lon, onStatus) {
   return { hospitals, police, searchedRadiusKm: maxSearched / 1000 };
 }
 
-// ── Geolocation ───────────────────────────────────────────────────────────────
+// Ã¢â€â‚¬Ã¢â€â‚¬ Geolocation Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
 
 /**
  * getUserLocation()
@@ -234,61 +251,131 @@ async function fetchNearbyPlaces(lat, lon, onStatus) {
  *
  * @returns {Promise<{ lat: number, lon: number, accuracy: number }>}
  */
-function getUserLocation(WATCH_MS = 6000, GOOD_ACCURACY_M = 50) {
+const LOCATION_KEY = "roadsos-last-location";
+
+function readCachedLocation(maxAgeMs, maxAccuracy = Infinity) {
+  try {
+    const cached = JSON.parse(localStorage.getItem(LOCATION_KEY) || "null");
+    if (!cached || Date.now() - cached.savedAt > maxAgeMs) return null;
+    if ((cached.accuracy ?? Infinity) > maxAccuracy) return null;
+    return cached;
+  } catch {
+    return null;
+  }
+}
+
+function saveLocation(location) {
+  localStorage.setItem(LOCATION_KEY, JSON.stringify({
+    ...location,
+    savedAt: Date.now(),
+  }));
+}
+
+function getUserLocation() {
   return new Promise((resolve, reject) => {
     if (!navigator.geolocation) {
       reject("Geolocation is not supported by your browser.");
       return;
     }
 
-    const fixes = [];
-    let watchId;
-    let settled = false;
+    if (!window.isSecureContext) {
+      reject("Location needs a secure page. Open this app on localhost or HTTPS.");
+      return;
+    }
 
-    function finish() {
+    const freshCache = readCachedLocation(30 * 1000, 500);
+    if (freshCache) {
+      resolve(freshCache);
+      return;
+    }
+
+    const LOCATION_WAIT_MS = 8000;
+    let settled = false;
+    let watchId = null;
+    let bestFix = null;
+    const options = {
+      enableHighAccuracy: false,
+      timeout: LOCATION_WAIT_MS,
+      maximumAge: 0,
+    };
+
+    function cleanup() {
+      if (watchId != null) {
+        navigator.geolocation.clearWatch(watchId);
+      }
+    }
+
+    function toLocation(pos) {
+      return {
+        lat:      pos.coords.latitude,
+        lon:      pos.coords.longitude,
+        accuracy: pos.coords.accuracy,
+      };
+    }
+
+    function finishWithLocation(location) {
       if (settled) return;
       settled = true;
-      navigator.geolocation.clearWatch(watchId);
+      cleanup();
+      saveLocation(location);
+      resolve(location);
+    }
 
-      if (!fixes.length) {
-        reject("No location fix received. Try again.");
-        return;
+    function finishWithError(error) {
+      if (settled) return;
+      settled = true;
+      cleanup();
+      const messages = {
+        1: "Location permission denied. Please allow location access and try again.",
+        2: "Location unavailable. Turn on device location/GPS and try again.",
+        3: "Location is taking too long. Please turn on location services and try again.",
+      };
+      reject(messages[error.code] || "Could not detect your location. Please try again.");
+    }
+
+    function rememberPosition(pos) {
+      const location = toLocation(pos);
+      if (!bestFix || location.accuracy < bestFix.accuracy) {
+        bestFix = location;
       }
-
-      // Pick the most accurate fix (lowest accuracy radius = best)
-      fixes.sort((a, b) => a.accuracy - b.accuracy);
-      const best = fixes[0];
-      console.log(`📍 Best fix — lat: ${best.lat}, lon: ${best.lon}, accuracy: ±${Math.round(best.accuracy)}m`);
-      resolve(best);
+      finishWithLocation(location);
     }
 
     watchId = navigator.geolocation.watchPosition(
-      (pos) => {
-        const fix = {
-          lat:      pos.coords.latitude,
-          lon:      pos.coords.longitude,
-          accuracy: pos.coords.accuracy,
-        };
-        fixes.push(fix);
-        console.log(`📡 Fix received — accuracy: ±${Math.round(fix.accuracy)}m`);
-
-        // Resolve immediately if accuracy is already good enough
-        if (fix.accuracy <= GOOD_ACCURACY_M) finish();
-      },
+      rememberPosition,
       (error) => {
-        const messages = {
-          1: "Location permission denied. Please allow access and try again.",
-          2: "Location unavailable. Check your device's GPS or network.",
-          3: "Location request timed out. Please try again.",
-        };
-        if (!fixes.length) reject(messages[error.code] || "Unknown location error.");
-        else finish();  // use what we have
+        if (error.code === 1) {
+          finishWithError(error);
+          return;
+        }
+        if (bestFix) {
+          finishWithLocation(bestFix);
+        }
       },
-      { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+      options
     );
 
-    // Collect fixes for WATCH_MS then take the best one
-    setTimeout(finish, WATCH_MS);
+    navigator.geolocation.getCurrentPosition(
+      rememberPosition,
+      (error) => {
+        if (error.code === 1) {
+          finishWithError(error);
+          return;
+        }
+        if (bestFix) {
+          finishWithLocation(bestFix);
+        }
+      },
+      options
+    );
+
+    setTimeout(() => {
+      if (bestFix) {
+        finishWithLocation(bestFix);
+        return;
+      }
+      finishWithError({ code: 3 });
+    }, LOCATION_WAIT_MS);
   });
 }
 
@@ -300,21 +387,60 @@ async function reverseGeocode(lat, lon) {
   return json.display_name || `${lat.toFixed(5)}, ${lon.toFixed(5)}`;
 }
 
-// ── Static fallback (ambulance — not in Overpass reliably) ───────────────────
+// Ã¢â€â‚¬Ã¢â€â‚¬ Static fallback (ambulance Ã¢â‚¬â€ not in Overpass reliably) Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
 
 const AMBULANCE_DATA = [
   { name: "National Ambulance 108", dist: "On-call", phone: "tel:108" },
-  { name: "RedCross Emergency",     dist: "—",       phone: "tel:+1800004444" },
+  { name: "RedCross Emergency",     dist: "On-call",  phone: "tel:+1800004444" },
 ];
 
-// ── UI ────────────────────────────────────────────────────────────────────────
+// Ã¢â€â‚¬Ã¢â€â‚¬ UI Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
 
 /**
- * @param {string} listId   – DOM container id
- * @param {Array}  items    – place objects
- * @param {number} [userLat] – user GPS lat (enables Navigate button)
- * @param {number} [userLon] – user GPS lon
+ * @param {string} listId   Ã¢â‚¬â€œ DOM container id
+ * @param {Array}  items    Ã¢â‚¬â€œ place objects
+ * @param {number} [userLat] Ã¢â‚¬â€œ user GPS lat (enables Navigate button)
+ * @param {number} [userLon] Ã¢â‚¬â€œ user GPS lon
  */
+const THEME_KEY = "roadsos-theme";
+let activeSearchId = 0;
+
+function applyTheme(theme) {
+  const nextTheme = theme === "dark" ? "dark" : "light";
+  const toggle = document.getElementById("theme-toggle");
+
+  document.documentElement.dataset.theme = nextTheme;
+  localStorage.setItem(THEME_KEY, nextTheme);
+
+  if (toggle) {
+    const nextLabel = nextTheme === "dark" ? "Light" : "Dark";
+    toggle.textContent = nextLabel;
+    toggle.setAttribute("aria-label", `Switch to ${nextLabel.toLowerCase()} theme`);
+  }
+}
+
+function resetHome() {
+  activeSearchId += 1;
+  document.getElementById("loader").classList.remove("is-active");
+  document.getElementById("status").textContent = "";
+  document.getElementById("status").style.color = "";
+  document.getElementById("results").style.display = "none";
+  document.getElementById("hospitals-list").innerHTML = "";
+  document.getElementById("police-list").innerHTML = "";
+  document.getElementById("ambulance-list").innerHTML = "";
+  document.getElementById("find-btn").disabled = false;
+  window.scrollTo({ top: 0, behavior: "smooth" });
+}
+
+applyTheme(localStorage.getItem(THEME_KEY) || "dark");
+
+document.getElementById("theme-toggle").addEventListener("click", () => {
+  const currentTheme = document.documentElement.dataset.theme;
+  applyTheme(currentTheme === "dark" ? "light" : "dark");
+});
+
+document.getElementById("home-btn").addEventListener("click", resetHome);
+
 function buildCards(listId, items, userLat, userLon) {
   const container = document.getElementById(listId);
   container.innerHTML = "";
@@ -322,7 +448,7 @@ function buildCards(listId, items, userLat, userLon) {
     const card = document.createElement("div");
     card.className = "card";
 
-    // Build Google Maps directions URL from user location → destination
+    // Build Google Maps directions URL from user location Ã¢â€ â€™ destination
     // Uses the official Maps URLs API with the place name so Google snaps to the real location
     const hasCoords = item.lat != null && item.lon != null && userLat != null;
     const mapsUrl = hasCoords
@@ -335,124 +461,96 @@ function buildCards(listId, items, userLat, userLon) {
     card.innerHTML = `
       <div class="card-info">
         <div class="name">${item.name}</div>
-        <div class="dist">📍 ${item.dist ?? "Nearby"}</div>
+        <div class="dist">Location: ${item.dist ?? "Nearby"}</div>
       </div>
       <div class="card-actions">
         ${mapsUrl
-          ? `<a class="card-nav" href="${mapsUrl}" target="_blank" rel="noopener">🧭 Navigate</a>`
+          ? `<a class="card-nav" href="${mapsUrl}" target="_blank" rel="noopener">Navigate</a>`
           : ""}
-        <a class="card-call" href="${item.phone ?? "#"}">📞 Call</a>
+        <a class="card-call" href="${item.phone ?? "#"}">Call</a>
       </div>
     `;
     container.appendChild(card);
   });
 }
 
-const homeBtn = document.getElementById("home-btn");
-const themeToggle = document.getElementById("theme-toggle");
-const themeIcon = themeToggle?.querySelector(".theme-icon");
-const themeText = themeToggle?.querySelector(".theme-text");
-let activeSearchId = 0;
-
-function applyTheme(theme) {
-  const isLight = theme === "light";
-  document.body.classList.toggle("light-theme", isLight);
-  if (themeIcon) themeIcon.textContent = isLight ? "☾" : "☀";
-  if (themeText) themeText.textContent = isLight ? "Dark" : "Light";
-  if (themeToggle) {
-    themeToggle.setAttribute(
-      "aria-label",
-      isLight ? "Switch to dark theme" : "Switch to light theme"
-    );
-  }
-}
-
-applyTheme(localStorage.getItem("roadSosTheme") || "dark");
-
-themeToggle?.addEventListener("click", () => {
-  const nextTheme = document.body.classList.contains("light-theme") ? "dark" : "light";
-  localStorage.setItem("roadSosTheme", nextTheme);
-  applyTheme(nextTheme);
-});
-
-homeBtn?.addEventListener("click", () => {
-  activeSearchId += 1;
-  document.getElementById("find-btn").disabled = false;
-  document.getElementById("results").style.display = "none";
-  document.getElementById("status").textContent = "";
-  document.getElementById("hospitals-list").innerHTML = "";
-  document.getElementById("police-list").innerHTML = "";
-  document.getElementById("ambulance-list").innerHTML = "";
-  window.scrollTo({ top: 0, behavior: "smooth" });
-});
-
 document.getElementById("find-btn").addEventListener("click", async () => {
   const searchId = activeSearchId + 1;
   activeSearchId = searchId;
   const btn    = document.getElementById("find-btn");
   const status = document.getElementById("status");
+  const loader = document.getElementById("loader");
 
   btn.disabled       = true;
-  status.style.color = "var(--muted)";
-  status.textContent = "Acquiring GPS fix… (up to 6 s)";
+  loader.classList.add("is-active");
+  status.style.color = "";
+  status.textContent = "Detecting your location... please allow location access.";
 
   try {
     // 1. Get best available GPS fix
     const { lat, lon, accuracy } = await getUserLocation();
     if (searchId !== activeSearchId) return;
-    status.textContent = `Locating… (±${Math.round(accuracy)}m accuracy)`;
+    status.textContent = `Location found (+/-${Math.round(accuracy)}m). Searching nearby...`;
 
-    // 2. Reverse-geocode for a readable label
-    const address = await reverseGeocode(lat, lon);
-    if (searchId !== activeSearchId) return;
-    console.log(`🗺️  Address: ${address}`);
-    status.textContent = `📍 ${address} (±${Math.round(accuracy)}m)`;
+    const addressPromise = reverseGeocode(lat, lon).catch(() => `${lat.toFixed(5)}, ${lon.toFixed(5)}`);
 
-    // 3. Fetch live data from Overpass (progressive per-category radius)
-    status.textContent += " — searching nearby…";
+    // 2. Fetch nearby places first so results appear quickly.
     const { hospitals, police, searchedRadiusKm } = await fetchNearbyPlaces(
       lat, lon,
       (msg) => {
         if (searchId === activeSearchId) {
-          status.textContent = `📍 ${address} — ${msg}`;
+          status.textContent = msg;
         }
       }
     );
+
     if (searchId !== activeSearchId) return;
 
-    // 4. Fetch real road distances from OSRM
-    status.textContent = `📍 ${address} — calculating road distances…`;
-    try {
-      await Promise.all([
-        hospitals.length ? fetchRoadDistances(lat, lon, hospitals) : Promise.resolve(),
-        police.length    ? fetchRoadDistances(lat, lon, police)   : Promise.resolve(),
-      ]);
-      if (searchId !== activeSearchId) return;
-      console.log("🛣️  Road distances fetched via OSRM");
-    } catch (err) {
-      console.warn("⚠️ OSRM failed, using straight-line distances:", err.message);
-    }
-
-    // 5. Render cards (pass user coords for Navigate links)
+    // 3. Render immediately using fast straight-line distances.
     buildCards("hospitals-list", hospitals.length
       ? hospitals
-      : [{ name: `No hospitals found within ${searchedRadiusKm} km`, dist: "—" }], lat, lon);
+      : [{ name: `No hospitals found within ${searchedRadiusKm} km`, dist: "Nearby" }], lat, lon);
 
     buildCards("police-list", police.length
       ? police
-      : [{ name: `No police stations found within ${searchedRadiusKm} km`, dist: "—" }], lat, lon);
+      : [{ name: `No police stations found within ${searchedRadiusKm} km`, dist: "Nearby" }], lat, lon);
 
     buildCards("ambulance-list", AMBULANCE_DATA);
 
     document.getElementById("results").style.display = "flex";
-    status.textContent = `📍 ${address} (±${Math.round(accuracy)}m)`;
+    loader.classList.remove("is-active");
+    status.textContent = `Showing nearest results (+/-${Math.round(accuracy)}m accuracy).`;
+
+    addressPromise.then((address) => {
+      if (searchId === activeSearchId) {
+        status.textContent = `${address} (+/-${Math.round(accuracy)}m)`;
+      }
+    });
+
+    // 4. Improve displayed distances in the background if OSRM responds quickly.
+    Promise.all([
+      hospitals.length ? fetchRoadDistances(lat, lon, hospitals) : Promise.resolve(),
+      police.length    ? fetchRoadDistances(lat, lon, police)   : Promise.resolve(),
+    ]).then(() => {
+      if (searchId !== activeSearchId) return;
+      buildCards("hospitals-list", hospitals.length
+        ? hospitals
+        : [{ name: `No hospitals found within ${searchedRadiusKm} km`, dist: "Nearby" }], lat, lon);
+      buildCards("police-list", police.length
+        ? police
+        : [{ name: `No police stations found within ${searchedRadiusKm} km`, dist: "Nearby" }], lat, lon);
+    }).catch((err) => {
+      console.warn("OSRM failed, keeping straight-line distances:", err.message);
+    });
 
   } catch (err) {
-    if (searchId !== activeSearchId) return;
     console.error("Error:", err);
-    status.textContent = `⚠️ ${err}`;
-    status.style.color = "#ff6b6b";
+    status.textContent = `Error: ${err}`;
+    status.style.color = "var(--danger)";
   } finally {
-    if (searchId === activeSearchId) btn.disabled = false;
+    if (searchId === activeSearchId) {
+      loader.classList.remove("is-active");
+      btn.disabled = false;
+    }
   }
 });
