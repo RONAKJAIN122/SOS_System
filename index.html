@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Emergency Help Finder</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+  <h1>🚨 Emergency Help</h1>
+  <p class="subtitle">Find hospitals, police &amp; ambulance near you.</p>
+
+  <button id="find-btn">Find Nearby Help</button>
+  <p id="status"></p>
+
+  <div id="results">
+    <div class="section hospitals">
+      <h2>🏥 Hospitals</h2>
+      <div class="cards" id="hospitals-list"></div>
+    </div>
+    <div class="section police">
+      <h2>👮 Police Stations</h2>
+      <div class="cards" id="police-list"></div>
+    </div>
+    <div class="section ambulance">
+      <h2>🚑 Ambulance Services</h2>
+      <div class="cards" id="ambulance-list"></div>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
+
+</body>
+</html>

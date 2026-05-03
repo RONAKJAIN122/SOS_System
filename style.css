@@ -1,0 +1,117 @@
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  font-family: 'Segoe UI', sans-serif;
+  background: #0f0f14;
+  color: #eee;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 40px 16px;
+}
+
+h1 {
+  font-size: 1.8rem;
+  color: #ff4d4d;
+  margin-bottom: 8px;
+  letter-spacing: 0.5px;
+}
+
+p.subtitle {
+  color: #888;
+  font-size: 0.9rem;
+  margin-bottom: 32px;
+}
+
+#find-btn {
+  background: #ff4d4d;
+  color: #fff;
+  border: none;
+  padding: 14px 36px;
+  font-size: 1rem;
+  font-weight: 600;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background 0.2s, transform 0.1s;
+}
+
+#find-btn:hover    { background: #e03c3c; }
+#find-btn:active   { transform: scale(0.97); }
+#find-btn:disabled { background: #555; cursor: not-allowed; }
+
+#status {
+  margin-top: 16px;
+  font-size: 0.85rem;
+  color: #aaa;
+  min-height: 20px;
+}
+
+#results {
+  width: 100%;
+  max-width: 640px;
+  margin-top: 32px;
+  display: none;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.section h2 {
+  font-size: 1rem;
+  font-weight: 600;
+  margin-bottom: 12px;
+  padding-left: 10px;
+  border-left: 3px solid;
+}
+
+.section.hospitals h2 { border-color: #4da6ff; color: #4da6ff; }
+.section.police    h2 { border-color: #ffd94d; color: #ffd94d; }
+.section.ambulance h2 { border-color: #4dff91; color: #4dff91; }
+
+.cards { display: flex; flex-direction: column; gap: 10px; }
+
+.card {
+  background: #1a1a24;
+  border-radius: 8px;
+  padding: 14px 16px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border: 1px solid #2a2a36;
+}
+
+.card-info .name { font-weight: 600; font-size: 0.95rem; }
+.card-info .dist { font-size: 0.78rem; color: #888; margin-top: 3px; }
+
+.card-actions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+.card-nav,
+.card-call {
+  border-radius: 6px;
+  padding: 6px 12px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.card-nav {
+  background: transparent;
+  border: 1px solid #4dff91;
+  color: #4dff91;
+}
+.card-nav:hover { background: #4dff91; color: #0f0f14; }
+
+.card-call {
+  background: transparent;
+  border: 1px solid #ff4d4d;
+  color: #ff4d4d;
+}
+.card-call:hover { background: #ff4d4d; color: #fff; }
